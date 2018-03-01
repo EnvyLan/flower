@@ -30,7 +30,6 @@ class DashboardView(BaseHandler):
         app = self.application
         events = app.events.state
         broker = app.capp.connection().as_uri()
-
         if refresh:
             try:
                 yield ListWorkers.update_workers(app=app)
@@ -46,7 +45,7 @@ class DashboardView(BaseHandler):
             info.update(self._as_dict(worker))
             info.update(status=worker.alive)
             workers[name] = info
-
+        logger.debug(workers)
         if json:
             self.write(dict(data=list(workers.values())))
         else:

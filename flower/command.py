@@ -31,7 +31,27 @@ logger = logging.getLogger(__name__)
 
 class FlowerCommand(Command):
     ENV_VAR_PREFIX = 'FLOWER_'
-
+    
+    def execute_from_commandline(self, argv=None):
+        """Execute application from command-line.
+        Arguments:
+            argv (List[str]): The list of command-line arguments.
+                Defaults to ``sys.argv``.
+        重新 flower命令初始化方法，这里要setup 多个 celery app，
+        根据配置文件来 多次调用 setup_app_from_commandline
+        """
+        if argv is None:
+            argv = list(sys.argv)
+        # Should we load any special concurrency environment?
+        self.maybe_patch_concurrency(argv)
+        self.on_concurrency_setup()
+    
+        # Dump version and exit if '--version' arg set.
+        self.early_version(argv)
+        argv = self.setup_app_from_commandline(argv)
+        self.prog_name = os.path.basename(argv[0])
+        return self.handle_argv(self.prog_name, argv[1:])
+    
     def run_from_argv(self, prog_name, argv=None, **_kwargs):
         self.apply_env_options()
         self.apply_options(prog_name, argv)
@@ -87,6 +107,7 @@ class FlowerCommand(Command):
                 raise
 
     def setup_logging(self):
+        logger.debug(options.logging)
         if options.debug and options.logging == 'info':
             options.logging = 'debug'
             enable_pretty_logging()
