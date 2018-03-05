@@ -103,7 +103,6 @@ class Events(threading.Thread):
         while True:
             try:
                 try_interval *= 2
-
                 with self.capp.connection() as conn:
                     recv = EventReceiver(conn,
                                          handlers={"*": self.on_event},

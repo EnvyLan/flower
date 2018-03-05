@@ -26,10 +26,11 @@ class DashboardView(BaseHandler):
     def get(self):
         refresh = self.get_argument('refresh', default=False, type=bool)
         json = self.get_argument('json', default=False, type=bool)
-
+        # app 代表flower对象
         app = self.application
         events = app.events.state
         broker = app.capp.connection().as_uri()
+        
         if refresh:
             try:
                 yield ListWorkers.update_workers(app=app)
@@ -37,6 +38,7 @@ class DashboardView(BaseHandler):
                 logger.exception('Failed to update workers: %s', e)
 
         workers = {}
+        logger.debug(events.counter.items())
         for name, values in events.counter.items():
             if name not in events.workers:
                 continue
@@ -45,7 +47,6 @@ class DashboardView(BaseHandler):
             info.update(self._as_dict(worker))
             info.update(status=worker.alive)
             workers[name] = info
-        logger.debug(workers)
         if json:
             self.write(dict(data=list(workers.values())))
         else:
