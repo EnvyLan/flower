@@ -38,7 +38,7 @@ class DashboardView(BaseHandler):
                 logger.exception('Failed to update workers: %s', e)
 
         workers = {}
-        logger.debug(events.counter.items())
+        
         for name, values in events.counter.items():
             if name not in events.workers:
                 continue
@@ -47,6 +47,7 @@ class DashboardView(BaseHandler):
             info.update(self._as_dict(worker))
             info.update(status=worker.alive)
             workers[name] = info
+        
         if json:
             self.write(dict(data=list(workers.values())))
         else:

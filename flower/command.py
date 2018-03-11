@@ -32,72 +32,7 @@ logger = logging.getLogger(__name__)
 class FlowerCommand(Command):
     ENV_VAR_PREFIX = 'FLOWER_'
     
-    def execute_from_commandline(self, argv=None):
-        """Execute application from command-line.
-        Arguments:
-            argv (List[str]): The list of command-line arguments.
-                Defaults to ``sys.argv``.
-        重新 flower命令初始化方法，这里要setup 多个 celery app，
-        根据配置文件来 多次调用 setup_app_from_commandline
-        """
-        if argv is None:
-            argv = list(sys.argv)
-        # Should we load any special concurrency environment?
-        self.maybe_patch_concurrency(argv)
-        self.on_concurrency_setup()
-    
-        # Dump version and exit if '--version' arg set.
-        self.early_version(argv)
-        argv = self.setup_app_from_commandline(argv)
-        self.prog_name = os.path.basename(argv[0])
-        return self.handle_argv(self.prog_name, argv[1:])
-    
-    # 这个是初始化celery app的函数
-    def setup_app_from_commandline(self, argv):
-        preload_options = self.parse_preload_options(argv)
-        quiet = preload_options.get('quiet')
-        if quiet is not None:
-            self.quiet = quiet
-        try:
-            self.no_color = preload_options['no_color']
-        except KeyError:
-            pass
-        workdir = preload_options.get('workdir')
-        if workdir:
-            os.chdir(workdir)
-        app = (preload_options.get('app') or
-               os.environ.get('CELERY_APP') or
-               self.app)
-        preload_loader = preload_options.get('loader')
-        if preload_loader:
-            # Default app takes loader from this env (Issue #1066).
-            os.environ['CELERY_LOADER'] = preload_loader
-        loader = (preload_loader,
-                  os.environ.get('CELERY_LOADER') or
-                  'default')
-        broker = preload_options.get('broker', None)
-        if broker:
-            os.environ['CELERY_BROKER_URL'] = broker
-        config = preload_options.get('config')
-        if config:
-            os.environ['CELERY_CONFIG_MODULE'] = config
-        if self.respects_app_option:
-            # app 是通过命令行 -A  proj 传入的字符串， find_app会通过 pythonpath寻找proj的module并初始化
-            # 这里还有另外一种初始化celery app的方式，通过传入的broker url也能解析到celery的配置
-            # 所以我这里判断，其实flower并没有通过引入proj的东西，只是通过broker url来获取相关配置信息
-            if app:
-                self.app = self.find_app(app)
-            elif self.app is None:
-                self.app = self.get_app(loader=loader)
-            if self.enable_config_from_cmdline:
-                argv = self.process_cmdline_config(argv)
-        else:
-            from celery import Celery
-            self.app = Celery(fixups=[])
-
-        self._handle_user_preload_options(argv)
-
-        return argv
+    multi_celery_app = False
     
     def run_from_argv(self, prog_name, argv=None, **_kwargs):
         self.apply_env_options()
@@ -105,9 +40,7 @@ class FlowerCommand(Command):
 
         self.extract_settings()
         self.setup_logging()
-
         self.app.loader.import_default_modules()
-        logger.debug(self.app)
         flower = Flower(capp=self.app, options=options, **settings)
         
         # flower程序退出时的注册函数
@@ -218,3 +151,123 @@ class FlowerCommand(Command):
             pformat(sorted(self.app.tasks.keys()))
         )
         logger.debug('Settings: %s', pformat(settings))
+
+
+class MultiFlowerCommand(FlowerCommand):
+    
+    multi_celery_app = True
+    
+    _celery_apps = []
+    
+    # 测试数据
+    broker_urls = ['redis://127.0.0.1:6379/8', 'redis://127.0.0.1:6379/3']
+    
+    def __init__(self, *args, **kwargs):
+        super(MultiFlowerCommand, self).__init__(get_app=self._get_app, *args, **kwargs)
+
+    def run_from_argv(self, prog_name, argv=None, **_kwargs):
+        self.apply_env_options()
+        self.apply_options(prog_name, argv)
+    
+        self.extract_settings()
+        self.setup_logging()
+        
+        for _app in self._celery_apps:
+            # 这里如果不同的app使用不同的loader就会有问题，但一般不会有这样的情况
+            _app.loader.import_default_modules()
+        flower = Flower(capp=self.app, options=options, **settings)
+    
+        # flower程序退出时的注册函数
+        atexit.register(flower.stop)
+    
+        def sigterm_handler(signal, frame):
+            logger.info('SIGTERM detected, shutting down')
+            sys.exit(0)
+    
+        signal.signal(signal.SIGTERM, sigterm_handler)
+    
+        self.print_banner('ssl_options' in settings)
+    
+        try:
+            flower.start()
+        except (KeyboardInterrupt, SystemExit):
+            pass
+    
+    def execute_from_commandline(self, argv=None):
+        """Execute application from command-line.
+        Arguments:
+            argv (List[str]): The list of command-line arguments.
+                Defaults to ``sys.argv``.
+        重新 flower命令初始化方法，这里要setup 多个 celery app，
+        根据配置文件来 多次调用 setup_app_from_commandline
+        """
+        if argv is None:
+            argv = list(sys.argv)
+        # Should we load any special concurrency environment?
+        self.maybe_patch_concurrency(argv)
+        self.on_concurrency_setup()
+    
+        # Dump version and exit if '--version' arg set.
+        self.early_version(argv)
+        argv = self.setup_app_from_commandline(argv)
+        print(type(self.get_app))
+        self.prog_name = os.path.basename(argv[0])
+        return self.handle_argv(self.prog_name, argv[1:])
+
+    # 这个是初始化celery app的函数
+    def setup_app_from_commandline(self, argv):
+        preload_options = self.parse_preload_options(argv)
+        quiet = preload_options.get('quiet')
+        if quiet is not None:
+            self.quiet = quiet
+        try:
+            self.no_color = preload_options['no_color']
+        except KeyError:
+            pass
+        workdir = preload_options.get('workdir')
+        if workdir:
+            os.chdir(workdir)
+        app = (preload_options.get('app') or
+               os.environ.get('CELERY_APP') or
+               self.app)
+        preload_loader = preload_options.get('loader')
+        if preload_loader:
+            # Default app takes loader from this env (Issue #1066).
+            os.environ['CELERY_LOADER'] = preload_loader
+        loader = (preload_loader,
+                  os.environ.get('CELERY_LOADER') or
+                  'default')
+        broker = preload_options.get('broker', None)
+        if broker:
+            os.environ['CELERY_BROKER_URL'] = broker
+        config = preload_options.get('config')
+        if config:
+            os.environ['CELERY_CONFIG_MODULE'] = config
+        if self.respects_app_option:
+            # app 是通过命令行 -A  proj 传入的字符串， find_app会通过 pythonpath寻找proj的module并初始化
+            # 这里还有另外一种初始化celery app的方式，通过传入的broker url也能解析到celery的配置
+            # 所以我这里判断，其实flower并没有通过引入proj的东西，只是通过broker url来获取相关配置信息
+            if app:
+                self.app = self.find_app(app)
+            elif self.app is None:
+                self.app = self.get_app(loader=loader)
+                self._celery_apps.append(self.app)
+            if self.enable_config_from_cmdline:
+                argv = self.process_cmdline_config(argv)
+        elif self.multi_celery_app:
+            pass
+        else:
+            from celery import Celery
+            self.app = Celery(fixups=[])
+    
+        self._handle_user_preload_options(argv)
+    
+        return argv
+    
+    # 先从 celery._state._get_current_app  copy过来
+    def _get_app(self, *args, **kwargs):
+        from celery.app.base import Celery
+        return Celery(
+            'default', fixups=[], set_as_current=False,
+            loader=os.environ.get('CELERY_LOADER') or 'default',
+        )

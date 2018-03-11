@@ -22,7 +22,7 @@ class WorkerView(BaseHandler):
             logger.error(e)
 
         worker = ListWorkers.worker_cache.get(name)
-
+        logger.debug(worker)
         if worker is None:
             raise web.HTTPError(404, "Unknown worker '%s'" % name)
         if 'stats' not in worker:
