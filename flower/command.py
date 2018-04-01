@@ -41,6 +41,7 @@ class FlowerCommand(Command):
         self.extract_settings()
         self.setup_logging()
         self.app.loader.import_default_modules()
+        self.app._conf.broker_url
         flower = Flower(capp=self.app, options=options, **settings)
         
         # flower程序退出时的注册函数
@@ -161,6 +162,7 @@ class MultiFlowerCommand(FlowerCommand):
     
     # 测试数据
     broker_urls = ['redis://127.0.0.1:6379/8', 'redis://127.0.0.1:6379/3']
+    apps = [('envylan', 'C:\\Users\\Envylan\\PycharmProjects\\DjangoTest'), ('envylan2', 'C:\\Users\\Envylan\\PycharmProjects\\DjangoTest')]
     
     def __init__(self, *args, **kwargs):
         super(MultiFlowerCommand, self).__init__(get_app=self._get_app, *args, **kwargs)
@@ -174,7 +176,10 @@ class MultiFlowerCommand(FlowerCommand):
         
         for _app in self._celery_apps:
             # 这里如果不同的app使用不同的loader就会有问题，但一般不会有这样的情况
-            _app.loader.import_default_modules()
+            print(_app._conf.broker_url)
+            _loader = _app.loader
+            temp = _loader.import_default_modules()
+        print(self._celery_apps[0] == self._celery_apps[1])
         flower = Flower(capp=self.app, options=options, **settings)
     
         # flower程序退出时的注册函数
@@ -210,7 +215,6 @@ class MultiFlowerCommand(FlowerCommand):
         # Dump version and exit if '--version' arg set.
         self.early_version(argv)
         argv = self.setup_app_from_commandline(argv)
-        print(type(self.get_app))
         self.prog_name = os.path.basename(argv[0])
         return self.handle_argv(self.prog_name, argv[1:])
 
@@ -239,7 +243,8 @@ class MultiFlowerCommand(FlowerCommand):
                   'default')
         broker = preload_options.get('broker', None)
         if broker:
-            os.environ['CELERY_BROKER_URL'] = broker
+            pass
+            #os.environ['CELERY_BROKER_URL'] = broker
         config = preload_options.get('config')
         if config:
             os.environ['CELERY_CONFIG_MODULE'] = config
@@ -248,14 +253,14 @@ class MultiFlowerCommand(FlowerCommand):
             # 这里还有另外一种初始化celery app的方式，通过传入的broker url也能解析到celery的配置
             # 所以我这里判断，其实flower并没有通过引入proj的东西，只是通过broker url来获取相关配置信息
             if app:
-                self.app = self.find_app(app)
+                for _a in self.apps:
+                    os.chdir(_a[1])
+                    self._celery_apps.append(self.find_app(_a[0]))
+                self.app = self._celery_apps[-1]
             elif self.app is None:
                 self.app = self.get_app(loader=loader)
-                self._celery_apps.append(self.app)
             if self.enable_config_from_cmdline:
                 argv = self.process_cmdline_config(argv)
-        elif self.multi_celery_app:
-            pass
         else:
             from celery import Celery
             self.app = Celery(fixups=[])

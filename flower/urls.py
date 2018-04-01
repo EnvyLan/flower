@@ -14,7 +14,7 @@ from .views.broker import BrokerView
 from .views.workers import WorkerView
 from .views.tasks import TaskView, TasksView, TasksDataTable
 from .views.error import NotFoundErrorHandler
-from .views.dashboard import DashboardView, DashboardUpdateHandler
+from .views.dashboard import DashboardView, DashboardUpdateHandler, MyHandler
 from .utils import gen_cookie_secret
 
 
@@ -31,6 +31,7 @@ settings = dict(
 handlers = [
     # App
     url(r"/", DashboardView, name='main'),
+    url(r"/my", MyHandler),
     url(r"/dashboard", DashboardView, name='dashboard'),
     url(r"/worker/(.+)", WorkerView, name='worker'),
     url(r"/task/(.+)", TaskView, name='task'),

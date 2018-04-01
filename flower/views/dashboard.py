@@ -144,3 +144,25 @@ class DashboardUpdateHandler(websocket.WebSocketHandler):
 
     def check_origin(self, origin):
         return True
+
+
+class MyHandler(BaseHandler):
+    
+    @web.authenticated
+    @gen.coroutine
+    def get(self):
+        from tornado.httpclient import AsyncHTTPClient
+        http_client = AsyncHTTPClient()
+        a = self.get_argument('a', 0)
+        if a == 0:
+            response = yield http_client.fetch("https://baidu.com")
+        else:
+            response = yield http_client.fetch('https://google.com')
+        self.do_smt(response)
+        self.write(dict(
+            a=123,
+            b=321
+        ))
+    
+    def do_smt(self, resp):
+        print(resp.body)
