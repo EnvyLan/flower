@@ -41,9 +41,7 @@ class FlowerCommand(Command):
         self.extract_settings()
         self.setup_logging()
         self.app.loader.import_default_modules()
-        self.app._conf.broker_url
         flower = Flower(capp=self.app, options=options, **settings)
-        
         # flower程序退出时的注册函数
         atexit.register(flower.stop)
 
@@ -179,9 +177,8 @@ class MultiFlowerCommand(FlowerCommand):
             print(_app._conf.broker_url)
             _loader = _app.loader
             temp = _loader.import_default_modules()
-        print(self._celery_apps[0] == self._celery_apps[1])
-        flower = Flower(capp=self.app, options=options, **settings)
-    
+        flower = Flower(capp=self._celery_apps[0], options=options, **settings)
+        # flower2 = Flower(capp=self._celery_apps[1], options=options, **settings)
         # flower程序退出时的注册函数
         atexit.register(flower.stop)
     
@@ -256,7 +253,7 @@ class MultiFlowerCommand(FlowerCommand):
                 for _a in self.apps:
                     os.chdir(_a[1])
                     self._celery_apps.append(self.find_app(_a[0]))
-                self.app = self._celery_apps[-1]
+                self.app = self._celery_apps[0]
             elif self.app is None:
                 self.app = self.get_app(loader=loader)
             if self.enable_config_from_cmdline:

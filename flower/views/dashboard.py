@@ -36,7 +36,7 @@ class DashboardView(BaseHandler):
                 yield ListWorkers.update_workers(app=app)
             except Exception as e:
                 logger.exception('Failed to update workers: %s', e)
-
+        logger.debug(refresh)
         workers = {}
         
         for name, values in events.counter.items():

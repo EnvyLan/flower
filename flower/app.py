@@ -76,3 +76,15 @@ class Flower(tornado.web.Application):
     def transport(self):
         return getattr(self.capp.connection().transport,
                        'driver_type', None)
+
+
+class FlowerServer(tornado.web.Application):
+    
+    def __init__(self):
+        pass
+    
+    def start(self):
+        pass
+    
+    def stop(self):
+        pass

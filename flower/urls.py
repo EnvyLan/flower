@@ -17,16 +17,14 @@ from .views.error import NotFoundErrorHandler
 from .views.dashboard import DashboardView, DashboardUpdateHandler, MyHandler
 from .utils import gen_cookie_secret
 
-
 settings = dict(
     template_path=os.path.join(os.path.dirname(__file__), "templates"),
     static_path=os.path.join(os.path.dirname(__file__), "static"),
     cookie_secret=gen_cookie_secret(),
     static_url_prefix='/static/',
     login_url='/login',
-    debug=True
+    debug=True,
 )
-
 
 handlers = [
     # App
@@ -47,7 +45,7 @@ handlers = [
     (r"/api/worker/pool/autoscale/(.+)", control.WorkerPoolAutoscale),
     (r"/api/worker/queue/add-consumer/(.+)", control.WorkerQueueAddConsumer),
     (r"/api/worker/queue/cancel-consumer/(.+)",
-        control.WorkerQueueCancelConsumer),
+     control.WorkerQueueCancelConsumer),
     # Task API
     (r"/api/tasks", tasks.ListTasks),
     (r"/api/task/types", tasks.ListTaskTypes),
@@ -84,7 +82,7 @@ handlers = [
     # Auth
     (r"/login", auth.LoginHandler),
     url(r"/logout", auth.LogoutHandler, name='logout'),
-
+    
     # Error
     (r".*", NotFoundErrorHandler),
 ]

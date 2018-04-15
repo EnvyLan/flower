@@ -9,7 +9,7 @@ from tornado.options import options
 DEFAULT_CONFIG_FILE = 'flowerconfig.py'
 
 
-define("port", default=5555,
+define("port", default=5556,
        help="run on the given port", type=int)
 define("address", default='',
        help="run on the given address", type=str)

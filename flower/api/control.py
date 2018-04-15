@@ -33,7 +33,6 @@ class ControlHandler(BaseHandler):
         timeout = app.options.inspect_timeout / 1000.0
         inspect = app.capp.control.inspect(
             timeout=timeout, destination=destination)
-        logger.debug(inspect)
         for method in cls.INSPECT_METHODS:
             futures.append(app.delay(getattr(inspect, method)))
         results = yield futures
